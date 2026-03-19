@@ -2014,40 +2014,44 @@ function rSavingsTab(){
   </div>
 
   <!-- BULK CALENDAR ENTRY -->
-  <div class="cwrap" style="margin-bottom:14px">
+  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;margin-bottom:14px;overflow:hidden">
+    <!-- Header row -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;color:#2EE8A5;letter-spacing:.5px">📅 ENTRADA MASIVA POR CALENDARIO</div>
+      <div style="font-size:11px;font-weight:700;color:#2EE8A5;letter-spacing:.5px">📅 ENTRADA MASIVA</div>
       <div style="display:flex;align-items:center;gap:6px">
-        <button onclick="savCalPrev()" style="width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:14px;font-family:inherit">‹</button>
-        <span id="sav-cal-title" style="font-size:12px;color:#ccc;font-weight:600;min-width:90px;text-align:center"></span>
-        <button onclick="savCalNext()" style="width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:14px;font-family:inherit">›</button>
+        <button onclick="savCalPrev()" style="width:32px;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:16px;font-family:inherit;line-height:1">‹</button>
+        <span id="sav-cal-title" style="font-size:12px;color:#ccc;font-weight:600;min-width:96px;text-align:center"></span>
+        <button onclick="savCalNext()" style="width:32px;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:16px;font-family:inherit;line-height:1">›</button>
       </div>
     </div>
 
     <!-- Type selector -->
-    <div style="display:flex;gap:6px;margin-bottom:10px" id="sav-type-btns"></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px" id="sav-type-btns"></div>
 
-    <!-- Weekday headers — fixed row above calendar -->
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
-      ${['L','M','X','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:10px;color:#444;padding:3px 0;font-weight:600">${d}</div>`).join('')}
+    <!-- Weekday headers -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px">
+      ${['L','M','X','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:9px;color:#444;padding:2px 0;font-weight:600">${d}</div>`).join('')}
     </div>
-    <!-- Calendar grid — days only, no headers inside -->
-    <div id="sav-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px"></div>
 
-    <!-- Amount + apply -->
-    <div style="margin-top:4px">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <input id="sav-bulk-amount" type="number" placeholder="€ por día seleccionado" min="0" step="0.01"
-          style="flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit"/>
-        <div id="sav-sel-count" style="font-size:12px;color:#2EE8A5;font-weight:700;white-space:nowrap;min-width:44px;text-align:right">0 días</div>
-      </div>
-      <button onclick="saveBulkSave()"
-        style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">
-        Guardar selección
-      </button>
+    <!-- Calendar grid — fixed height cells, no aspect-ratio -->
+    <div id="sav-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px"></div>
+
+    <!-- Monto -->
+    <div style="margin-bottom:8px">
+      <div style="font-size:10px;color:#555;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase">Monto por día seleccionado</div>
+      <input id="sav-bulk-amount" type="number" placeholder="0.00" min="0" step="0.01"
+        style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit;box-sizing:border-box"/>
     </div>
+
+    <!-- Guardar -->
+    <button onclick="saveBulkSave()"
+      style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>Guardar</span>
+      <span id="sav-sel-count" style="font-size:11px;background:rgba(0,0,0,.2);padding:2px 8px;border-radius:99px;font-weight:700">0 días</span>
+    </button>
+
     <div style="font-size:10px;color:#444;margin-top:8px;line-height:1.5">
-      Toca para seleccionar · Toca de nuevo para deseleccionar · Mantén pulsado para seleccionar rango
+      Toca para seleccionar · Toca de nuevo para quitar · Mantén pulsado para rango
     </div>
   </div>
 
@@ -2141,14 +2145,14 @@ function drawSavCalendar(){
     const hasEntry=existingDates.has(d);
     const cfg=SAV_TYPE_CFG[type];
     html+=`<div onclick="savCalToggle(${d})" ontouchstart="savCalTouchStart(${d})" ontouchend="savCalTouchEnd(${d},event)"
-      style="aspect-ratio:1;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+      style="height:38px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
         border:1.5px solid ${isSel?cfg.color:'rgba(255,255,255,.06)'};
         background:${isSel?cfg.bg:'rgba(255,255,255,.03)'};
         color:${isSel?cfg.color:'#666'};
         font-size:13px;font-weight:${isSel?700:400};
-        position:relative;user-select:none;-webkit-user-select:none">
+        user-select:none;-webkit-user-select:none;touch-action:manipulation">
       ${d}
-      ${hasEntry?`<div style="width:4px;height:4px;border-radius:50%;background:${isSel?cfg.color:'#444'};margin-top:1px"></div>`:'<div style="width:4px;height:4px"></div>'}
+      <div style="width:4px;height:4px;border-radius:50%;background:${hasEntry?(isSel?cfg.color:'#333'):'transparent'};margin-top:1px"></div>
     </div>`;
   }
 
