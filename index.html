@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FinControl"/>
+<meta name="theme-color" content="#0c1118"/>
+<title>FinControl</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="manifest" href="data:application/manifest+json,{
+  %22name%22:%22FinControl%22,
+  %22short_name%22:%22FinControl%22,
+  %22start_url%22:%22.%22,
+  %22display%22:%22standalone%22,
+  %22background_color%22:%22%230c1118%22,
+  %22theme_color%22:%22%230c1118%22,
+  %22orientation%22:%22portrait%22,
+  %22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230c1118'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='%232EE8A5'%3E%E2%82%AC%3C/text%3E%3C/svg%3E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]
+}"/>
+  <link rel="stylesheet" href="style.css"/>
+
+</head>
+<body>
+<div id="app">
+  <div id="hdr">
+    <div>
+      <div style="font-size:10px;color:#555;letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px" id="hdate"></div>
+      <div style="font-weight:900;font-size:21px;letter-spacing:-.5px">FinControl</div>
+    </div>
+    <div class="hright">
+      <button class="sbtn" id="sbtn" onclick="syncNow()"><span id="sbi">⟳</span></button>
+      <button class="hbtn" onclick="openSheet()">+</button>
+    </div>
+  </div>
+  <div id="bnr"><span id="bic"></span>&nbsp;<span id="btx"></span></div>
+  <div id="con"></div>
+  <nav id="nav">
+    <button class="nb active" id="n0" onclick="go(0)"><span class="ni">⊞</span><span class="nl">Inicio</span><div class="nd" id="d0"></div></button>
+    <button class="nb" id="n1" onclick="go(1)"><span class="ni">📊</span><span class="nl">Estadísticas</span><div class="nd" id="d1" style="display:none"></div></button>
+    <button class="nc" onclick="openSheet()"><div class="ncp">+</div><span class="nl">Agregar</span></button>
+    <button class="nb" id="n2" onclick="go(2)"><span class="ni">🕐</span><span class="nl">Historial</span><div class="nd" id="d2" style="display:none"></div></button>
+    <button class="nb" id="n3" onclick="go(3)"><span class="ni">☰</span><span class="nl">Registros</span><div class="nd" id="d3" style="display:none"></div></button>
+    <button class="nb" id="n4" onclick="go(4)"><span class="ni">💎</span><span class="nl">Patrimonio</span><div class="nd" id="d4" style="display:none"></div></button>
+    <button class="nb" id="n5" onclick="go(5)"><span class="ni">💹</span><span class="nl">Ahorro</span><div class="nd" id="d5" style="display:none"></div></button>
+  </nav>
+</div>
+<div id="ov" onclick="bgc(event)">
+  <div id="ovbg"></div>
+  <div id="sh">
+    <div class="hw"><div class="hnd"></div></div>
+    <div class="shdr">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div class="sico" id="sico"></div>
+        <div style="font-weight:800;font-size:16px" id="sttl">Nuevo registro</div>
+      </div>
+      <button class="sx" onclick="closeSheet()">×</button>
+    </div>
+    <div class="tg" id="tg"></div>
+    <div class="f"><label class="fl">Nombre / descripción</label><input id="fn" type="text" placeholder="ej. Netflix, Salario..."/></div>
+    <div class="fg" id="main-amount-row">
+      <div class="f"><label class="fl">Monto (EUR)</label><input id="fa" type="number" placeholder="0 = variable por keyword" min="0" oninput="if(parseFloat(this.value)===0||this.value==='')setFixed(false);else setFixed(true)"/></div>
+      <div class="f"><label class="fl">Día del mes</label><input id="fd" type="number" placeholder="1" min="1" max="31"/></div>
+    </div>
+    <div id="af" style="display:none">
+      <div class="f"><label class="fl">Mes en que cae</label>
+        <select id="fm"><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select></div>
+      <p class="hint">💡 Solo se descuenta el mes que indiques.</p>
+    </div>
+    <div id="vf" style="display:none">
+      <div class="fg">
+        <div class="f"><label class="fl">Mes</label>
+          <select id="fvm"><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select></div>
+        <div class="f"><label class="fl">Año</label><input id="fvy" type="number" placeholder="2025"/></div>
+      </div>
+      <p class="hint">💡 Este ingreso solo contará en el mes y año que indiques. La previsión usará el promedio del historial.</p>
+    </div>
+    <div id="df" style="display:none">
+      <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);border-radius:12px;padding:10px 13px;margin-bottom:14px;font-size:10px;color:#F97316;font-weight:600">
+        ⚡ Préstamo — campos marcados con * necesarios para el cálculo
+      </div>
+
+      <div style="font-size:10px;color:#555;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px">Datos del contrato</div>
+      <div class="fg">
+        <div class="f"><label class="fl">Monto original * (€)</label><input id="fd-orig" type="number" placeholder="ej. 19000" oninput="calcDebtPreview()"/></div>
+        <div class="f"><label class="fl">Total a devolver * (€)</label><input id="fd-total" type="number" placeholder="ej. 33986.01" oninput="calcDebtPreview()"/></div>
+      </div>
+      <div class="fg">
+        <div class="f"><label class="fl">Cuota mensual * (€)</label><input id="fa2" type="number" placeholder="ej. 283.21" oninput="calcDebtPreview()"/></div>
+        <div class="f"><label class="fl">Cargo trimestral * (€)</label><input id="fq" type="number" placeholder="ej. 21.99" oninput="calcDebtPreview()"/></div>
+      </div>
+      <div class="fg">
+        <div class="f"><label class="fl">Fecha de inicio *</label><input id="fd-date" type="date" oninput="calcDebtPreview()"/></div>
+        <div class="f"><label class="fl">Fin tipo fijo / vencimiento</label><input id="fd-fixed-end" type="date"/></div>
+      </div>
+      <div class="fg">
+        <div class="f"><label class="fl">Plazos totales (meses)</label><input id="fd-terms" type="number" placeholder="ej. 120" min="1" oninput="calcDebtPreview()"/></div>
+        <div class="f"><label class="fl">Interés nominal anual (%)</label><input id="fi" type="number" placeholder="ej. 11.18"/></div>
+      </div>
+
+      <div style="font-size:10px;color:#555;letter-spacing:.7px;text-transform:uppercase;margin:14px 0 8px">Estado actual</div>
+      <div class="f"><label class="fl">Saldo pendiente actual * (€)</label><input id="fr" type="number" placeholder="ej. 18360" oninput="calcDebtPreview()"/></div>
+
+      <div id="debt-preview" style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.25);border-radius:13px;padding:13px 14px;margin:12px 0 4px;display:none">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <span style="font-size:10px;color:#F97316;font-weight:700;letter-spacing:.7px;text-transform:uppercase">⚡ Resumen calculado</span>
+        </div>
+        <div id="debt-preview-rows"></div>
+      </div>
+      <p class="hint">💡 Avance real neto = (cuota×3 − cargo trimestral) ÷ 3. El plazo del contrato puede ser el período de tipo fijo, no la duración total.</p>
+    </div>
+        <div id="stf" style="display:none">
+      <div style="background:rgba(232,121,249,.07);border:1px solid rgba(232,121,249,.2);border-radius:12px;padding:12px 14px;margin-bottom:13px">
+        <div style="font-size:11px;color:#E879F9;font-weight:700;margin-bottom:4px">💡 Estado de cuenta</div>
+        <div style="font-size:10px;color:#888;line-height:1.5">El saldo base se calcula automáticamente del historial CSV. Aquí puedes añadir gastos/ingresos puntuales, impuestos y penalizaciones.</div>
+      </div>
+      <div class="f">
+        <label class="fl">Impuesto sobre saldo (% mensual)</label>
+        <input id="f-tax-rate" type="number" placeholder="ej. 2.5" min="0" step="0.01"/>
+      </div>
+      <p class="hint">💡 Se aplica proporcional al saldo: positivo si hay saldo, negativo si hay déficit.</p>
+      <div class="f">
+        <label class="fl">Penalización por déficit (%)</label>
+        <input id="f-penalty-rate" type="number" placeholder="ej. 5.0" min="0" step="0.01"/>
+      </div>
+      <p class="hint">💡 Solo se aplica cuando el saldo es negativo — % sobre el importe del déficit.</p>
+      <div class="f">
+        <label class="fl">Ajuste manual puntual (€)</label>
+        <input id="f-adjustment" type="number" placeholder="ej. -150 gasto médico, +200 reembolso" step="0.01"/>
+      </div>
+      <div class="f">
+        <label class="fl">Mes de referencia</label>
+        <select id="f-stmt-month"><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select>
+      </div>
+      <div class="f">
+        <label class="fl">Año de referencia</label>
+        <input id="f-stmt-year" type="number" placeholder="2026"/>
+      </div>
+      <div class="f">
+        <label class="fl">Palabras clave CSV (para identificar en historial)</label>
+        <input id="f-stmt-kw" type="text" placeholder="ej. impuesto, steuer, provision..."/>
+      </div>
+      <p class="hint">💡 Identifica estas transacciones en el historial del banco y las marca como "Estado de cuenta".</p>
+    </div>
+    <div id="fixed-toggle" style="display:flex;align-items:center;gap:10px;margin-bottom:13px;padding:10px 13px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.08)">
+      <label style="font-size:11px;color:#888;flex:1">¿El monto es siempre el mismo? <span style="color:#555">(0€ = variable)</span></label>
+      <div style="display:flex;gap:6px">
+        <button id="btn-fixed-yes" onclick="setFixed(true)" style="padding:4px 12px;border-radius:7px;border:none;font-size:11px;font-family:inherit;cursor:pointer">Sí, fijo</button>
+        <button id="btn-fixed-no" onclick="setFixed(false)" style="padding:4px 12px;border-radius:7px;border:none;font-size:11px;font-family:inherit;cursor:pointer">No, varía</button>
+      </div>
+    </div>
+    <div class="f"><label class="fl">Palabras clave CSV</label><input id="fkw" type="text" placeholder="ej. magenta, netflix, voest..."/></div>
+    <p class="hint" id="kw-hint" style="display:none">💡 Para montos variables usa keywords para identificar la transacción en el CSV. Para montos fijos el match es automático por monto.</p>
+    <div class="f"><label class="fl">Nota (opcional)</label><input id="fno" type="text" placeholder="Detalles adicionales..."/></div>
+    <button class="bsv" id="bsv" onclick="saveEntry()">Guardar registro</button>
+  </div>
+</div>
+  <script src="app.js"></script>
+
+</body>
+</html>
