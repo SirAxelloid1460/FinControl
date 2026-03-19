@@ -596,7 +596,7 @@ function rHome(){
       <div style="background:rgba(255,255,255,.07);border-radius:99px;height:5px"><div style="background:linear-gradient(90deg,#F97316,#FFD166);height:100%;border-radius:99px;width:${paidPct}%"></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px">
         <span style="font-size:9px;color:#555">Saldo actual</span>
-        <span style="font-size:9px;color:#555">${m?Math.ceil(m/3)+" pagos trimestrales restantes":""}</span>
+        <span style="font-size:9px;color:#555">${cd.monthsLeft?Math.ceil(cd.monthsLeft/3)+" pagos trimestrales restantes":""}</span>
       </div></div>`;
   });
   // Full year forecast
@@ -1999,19 +1999,55 @@ function deleteSavingsEntry(id){
 
 
 // ── SAVINGS TAB ───────────────────────────────────────────────
+// ── SAVINGS CALENDAR STATE ───────────────────────────────────
+let _savCal={year:new Date().getFullYear(),month:new Date().getMonth(),selected:new Set(),type:'interest'};
+
 function rSavingsTab(){
+  const now=new Date();
   $("con").innerHTML=`
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
     <div>
       <div style="font-size:10px;color:#555;letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px">Cuenta de ahorro</div>
       <div style="font-weight:900;font-size:20px;letter-spacing:-.5px;color:#2EE8A5">Revolut Savings</div>
     </div>
-    <button onclick="openSavingsEntry()" style="padding:9px 16px;border-radius:12px;border:1px solid rgba(46,232,165,.3);background:rgba(46,232,165,.1);color:#2EE8A5;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">+ Añadir</button>
+    <button onclick="openSavingsEntry()" style="padding:9px 16px;border-radius:12px;border:1px solid rgba(46,232,165,.3);background:rgba(46,232,165,.1);color:#2EE8A5;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">+ Entrada única</button>
   </div>
 
-  <!-- ADD SAVINGS ENTRY FORM -->
+  <!-- BULK CALENDAR ENTRY -->
+  <div class="cwrap" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#2EE8A5;letter-spacing:.5px">📅 ENTRADA MASIVA POR CALENDARIO</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="savCalPrev()" style="width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:14px;font-family:inherit">‹</button>
+        <span id="sav-cal-title" style="font-size:12px;color:#ccc;font-weight:600;min-width:90px;text-align:center"></span>
+        <button onclick="savCalNext()" style="width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:14px;font-family:inherit">›</button>
+      </div>
+    </div>
+
+    <!-- Type selector -->
+    <div style="display:flex;gap:6px;margin-bottom:10px" id="sav-type-btns"></div>
+
+    <!-- Calendar grid -->
+    <div id="sav-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px"></div>
+
+    <!-- Weekday headers -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;margin-top:-${148}px">
+    </div>
+
+    <!-- Amount + apply -->
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+      <input id="sav-bulk-amount" type="number" placeholder="€ por día" min="0" step="0.01"
+        style="flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit"/>
+      <button onclick="saveBulkSave()" style="padding:12px 18px;border-radius:11px;border:none;background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit">
+        Guardar<br><span id="sav-sel-count" style="font-size:10px;font-weight:600">0 días</span>
+      </button>
+    </div>
+    <div style="font-size:10px;color:#555;margin-top:6px">Toca días para seleccionarlos · Toca de nuevo para deseleccionar · Mantén para seleccionar rango</div>
+  </div>
+
+  <!-- SINGLE ENTRY FORM -->
   <div id="savings-form" style="display:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px">
-    <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:#f0f0f0">Nuevo movimiento</div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:#f0f0f0">Entrada única</div>
     <div class="fg" style="margin-bottom:12px">
       <div class="f" style="margin-bottom:0">
         <label class="fl">Tipo</label>
@@ -2042,7 +2078,139 @@ function rSavingsTab(){
 
   <div id="savings-summary-block">${buildSavingsSummaryHTML()}</div>
   `;
-  setTimeout(drawSavingsChart,50);
+  setTimeout(()=>{drawSavCalendar();drawSavingsChart();},50);
+}
+
+// ── SAVINGS CALENDAR LOGIC ────────────────────────────────────
+const SAV_TYPE_CFG={
+  interest:{label:'📈 Interés',color:'#FFD166',bg:'rgba(255,213,102,.15)'},
+  deposit: {label:'💰 Depósito',color:'#2EE8A5',bg:'rgba(46,232,165,.15)'},
+  withdrawal:{label:'💸 Retiro',color:'#FF6B6B',bg:'rgba(255,107,107,.15)'},
+};
+
+let _savRangeStart=null; // for range selection
+
+function drawSavCalendar(){
+  const {year,month,selected,type}=_savCal;
+  const titleEl=$("sav-cal-title");
+  const calEl=$("sav-calendar");
+  const typeBtns=$("sav-type-btns");
+  const countEl=$("sav-sel-count");
+  if(!calEl) return;
+
+  if(titleEl) titleEl.textContent=`${MF[month]} ${year}`;
+  if(countEl) countEl.textContent=`${selected.size} día${selected.size!==1?'s':''}`;
+
+  // Type buttons
+  if(typeBtns){
+    typeBtns.innerHTML=Object.entries(SAV_TYPE_CFG).map(([k,v])=>`
+      <button onclick="savCalSetType('${k}')"
+        style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid ${type===k?v.color:'rgba(255,255,255,.1)'};background:${type===k?v.bg:'transparent'};color:${type===k?v.color:'#555'};font-size:11px;font-weight:${type===k?700:400};cursor:pointer;font-family:inherit">
+        ${v.label}
+      </button>`).join('');
+  }
+
+  // Build days in month
+  const firstDay=new Date(year,month,1).getDay(); // 0=Sun
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  // Get existing entries for this month to show dots
+  const existingDates=new Set(savings_account
+    .filter(e=>{ const d=new Date(e.date); return d.getFullYear()===year&&d.getMonth()===month; })
+    .map(e=>new Date(e.date).getDate())
+  );
+
+  // Day-of-week headers (Mon first)
+  const dayHeaders=['L','M','X','J','V','S','D'];
+  let html=dayHeaders.map(d=>`<div style="text-align:center;font-size:9px;color:#444;padding:2px 0;font-weight:600">${d}</div>`).join('');
+
+  // Offset: convert Sun=0 to Mon=0
+  const offset=(firstDay+6)%7;
+  for(let i=0;i<offset;i++) html+=`<div></div>`;
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSel=selected.has(d);
+    const hasEntry=existingDates.has(d);
+    const cfg=SAV_TYPE_CFG[type];
+    html+=`<div onclick="savCalToggle(${d})" ontouchstart="savCalTouchStart(${d})" ontouchend="savCalTouchEnd(${d},event)"
+      style="aspect-ratio:1;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+        border:1.5px solid ${isSel?cfg.color:'rgba(255,255,255,.06)'};
+        background:${isSel?cfg.bg:'rgba(255,255,255,.03)'};
+        color:${isSel?cfg.color:'#666'};
+        font-size:13px;font-weight:${isSel?700:400};
+        position:relative;user-select:none;-webkit-user-select:none">
+      ${d}
+      ${hasEntry?`<div style="width:4px;height:4px;border-radius:50%;background:${isSel?cfg.color:'#444'};margin-top:1px"></div>`:'<div style="width:4px;height:4px"></div>'}
+    </div>`;
+  }
+
+  calEl.innerHTML=html;
+}
+
+function savCalToggle(day){
+  if(_savCal.selected.has(day)) _savCal.selected.delete(day);
+  else _savCal.selected.add(day);
+  drawSavCalendar();
+}
+
+let _touchTimer=null;
+function savCalTouchStart(day){
+  _touchTimer=setTimeout(()=>{
+    // Long press = select range from last selected to this day
+    if(_savRangeStart!==null){
+      const from=Math.min(_savRangeStart,day);
+      const to=Math.max(_savRangeStart,day);
+      for(let d=from;d<=to;d++) _savCal.selected.add(d);
+      _savRangeStart=null;
+      drawSavCalendar();
+    } else {
+      _savRangeStart=day;
+    }
+  },500);
+}
+function savCalTouchEnd(day,e){
+  clearTimeout(_touchTimer);
+}
+
+function savCalSetType(t){
+  _savCal.type=t;
+  drawSavCalendar();
+}
+function savCalPrev(){
+  _savCal.month--;
+  if(_savCal.month<0){_savCal.month=11;_savCal.year--;}
+  _savCal.selected=new Set();
+  drawSavCalendar();
+}
+function savCalNext(){
+  _savCal.month++;
+  if(_savCal.month>11){_savCal.month=0;_savCal.year++;}
+  _savCal.selected=new Set();
+  drawSavCalendar();
+}
+
+function saveBulkSave(){
+  const amount=parseFloat($("sav-bulk-amount")&&$("sav-bulk-amount").value)||0;
+  const {year,month,selected,type}=_savCal;
+  if(!selected.size){bnr("error","Selecciona al menos un día");return;}
+  if(!amount){bnr("error","Introduce el monto por día");return;}
+
+  let added=0;
+  selected.forEach(day=>{
+    const date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    // Skip if already exists for this date+type
+    const exists=savings_account.some(e=>e.date===date&&e.type===type);
+    if(!exists){
+      savings_account.push({id:Date.now()+added,type,date,amount,note:'bulk'});
+      added++;
+    }
+  });
+
+  if(added===0){bnr("error","Esos días ya tienen entradas de ese tipo");return;}
+  _savCal.selected=new Set();
+  sc();push();
+  bnr("success",`${added} entrada${added!==1?'s':''} guardada${added!==1?'s':''} ✓`);
+  rSavingsTab();
 }
 
 
