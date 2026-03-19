@@ -2027,22 +2027,28 @@ function rSavingsTab(){
     <!-- Type selector -->
     <div style="display:flex;gap:6px;margin-bottom:10px" id="sav-type-btns"></div>
 
-    <!-- Calendar grid -->
+    <!-- Weekday headers — fixed row above calendar -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
+      ${['L','M','X','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:10px;color:#444;padding:3px 0;font-weight:600">${d}</div>`).join('')}
+    </div>
+    <!-- Calendar grid — days only, no headers inside -->
     <div id="sav-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px"></div>
 
-    <!-- Weekday headers -->
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;margin-top:-${148}px">
-    </div>
-
     <!-- Amount + apply -->
-    <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-      <input id="sav-bulk-amount" type="number" placeholder="€ por día" min="0" step="0.01"
-        style="flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit"/>
-      <button onclick="saveBulkSave()" style="padding:12px 18px;border-radius:11px;border:none;background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit">
-        Guardar<br><span id="sav-sel-count" style="font-size:10px;font-weight:600">0 días</span>
+    <div style="margin-top:4px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input id="sav-bulk-amount" type="number" placeholder="€ por día seleccionado" min="0" step="0.01"
+          style="flex:1;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit"/>
+        <div id="sav-sel-count" style="font-size:12px;color:#2EE8A5;font-weight:700;white-space:nowrap;min-width:44px;text-align:right">0 días</div>
+      </div>
+      <button onclick="saveBulkSave()"
+        style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">
+        Guardar selección
       </button>
     </div>
-    <div style="font-size:10px;color:#555;margin-top:6px">Toca días para seleccionarlos · Toca de nuevo para deseleccionar · Mantén para seleccionar rango</div>
+    <div style="font-size:10px;color:#444;margin-top:8px;line-height:1.5">
+      Toca para seleccionar · Toca de nuevo para deseleccionar · Mantén pulsado para seleccionar rango
+    </div>
   </div>
 
   <!-- SINGLE ENTRY FORM -->
@@ -2099,7 +2105,10 @@ function drawSavCalendar(){
   if(!calEl) return;
 
   if(titleEl) titleEl.textContent=`${MF[month]} ${year}`;
-  if(countEl) countEl.textContent=`${selected.size} día${selected.size!==1?'s':''}`;
+  if(countEl){
+    countEl.textContent=`${selected.size} día${selected.size!==1?'s':''}`;
+    countEl.style.color=selected.size>0?'#2EE8A5':'#555';
+  }
 
   // Type buttons
   if(typeBtns){
@@ -2119,9 +2128,8 @@ function drawSavCalendar(){
     .map(e=>new Date(e.date).getDate())
   );
 
-  // Day-of-week headers (Mon first)
-  const dayHeaders=['L','M','X','J','V','S','D'];
-  let html=dayHeaders.map(d=>`<div style="text-align:center;font-size:9px;color:#444;padding:2px 0;font-weight:600">${d}</div>`).join('');
+  // No headers in grid — they are rendered statically above
+  let html='';
 
   // Offset: convert Sun=0 to Mon=0
   const offset=(firstDay+6)%7;
