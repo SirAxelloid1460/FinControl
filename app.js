@@ -2013,47 +2013,7 @@ function rSavingsTab(){
     <button onclick="openSavingsEntry()" style="padding:9px 16px;border-radius:12px;border:1px solid rgba(46,232,165,.3);background:rgba(46,232,165,.1);color:#2EE8A5;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">+ Entrada única</button>
   </div>
 
-  <!-- BULK CALENDAR ENTRY -->
-  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;margin-bottom:14px;overflow:hidden">
-    <!-- Header row -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;color:#2EE8A5;letter-spacing:.5px">📅 ENTRADA MASIVA</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <button onclick="savCalPrev()" style="width:32px;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:16px;font-family:inherit;line-height:1">‹</button>
-        <span id="sav-cal-title" style="font-size:12px;color:#ccc;font-weight:600;min-width:96px;text-align:center"></span>
-        <button onclick="savCalNext()" style="width:32px;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:16px;font-family:inherit;line-height:1">›</button>
-      </div>
-    </div>
-
-    <!-- Type selector -->
-    <div style="display:flex;gap:6px;margin-bottom:12px" id="sav-type-btns"></div>
-
-    <!-- Weekday headers -->
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px">
-      ${['L','M','X','J','V','S','D'].map(d=>`<div style="text-align:center;font-size:9px;color:#444;padding:2px 0;font-weight:600">${d}</div>`).join('')}
-    </div>
-
-    <!-- Calendar grid — fixed height cells, no aspect-ratio -->
-    <div id="sav-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px"></div>
-
-    <!-- Monto -->
-    <div style="margin-bottom:8px">
-      <div style="font-size:10px;color:#555;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase">Monto por día seleccionado</div>
-      <input id="sav-bulk-amount" type="number" placeholder="0.00" min="0" step="0.01"
-        style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit;box-sizing:border-box"/>
-    </div>
-
-    <!-- Guardar -->
-    <button onclick="saveBulkSave()"
-      style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
-      <span>Guardar</span>
-      <span id="sav-sel-count" style="font-size:11px;background:rgba(0,0,0,.2);padding:2px 8px;border-radius:99px;font-weight:700">0 días</span>
-    </button>
-
-    <div style="font-size:10px;color:#444;margin-top:8px;line-height:1.5">
-      Toca para seleccionar · Toca de nuevo para quitar · Mantén pulsado para rango
-    </div>
-  </div>
+  <div id="sav-cal-block" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;margin-bottom:14px"></div>
 
   <!-- SINGLE ENTRY FORM -->
   <div id="savings-form" style="display:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px">
@@ -2101,62 +2061,74 @@ const SAV_TYPE_CFG={
 let _savRangeStart=null; // for range selection
 
 function drawSavCalendar(){
+  const el=$("sav-cal-block");
+  if(!el) return;
   const {year,month,selected,type}=_savCal;
-  const titleEl=$("sav-cal-title");
-  const calEl=$("sav-calendar");
-  const typeBtns=$("sav-type-btns");
-  const countEl=$("sav-sel-count");
-  if(!calEl) return;
-
-  if(titleEl) titleEl.textContent=`${MF[month]} ${year}`;
-  if(countEl){
-    countEl.textContent=`${selected.size} día${selected.size!==1?'s':''}`;
-    countEl.style.color=selected.size>0?'#2EE8A5':'#555';
-  }
-
-  // Type buttons
-  if(typeBtns){
-    typeBtns.innerHTML=Object.entries(SAV_TYPE_CFG).map(([k,v])=>`
-      <button onclick="savCalSetType('${k}')"
-        style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid ${type===k?v.color:'rgba(255,255,255,.1)'};background:${type===k?v.bg:'transparent'};color:${type===k?v.color:'#555'};font-size:11px;font-weight:${type===k?700:400};cursor:pointer;font-family:inherit">
-        ${v.label}
-      </button>`).join('');
-  }
-
-  // Build days in month
-  const firstDay=new Date(year,month,1).getDay(); // 0=Sun
+  const cfg=SAV_TYPE_CFG[type];
+  const firstDay=(new Date(year,month,1).getDay()+6)%7;
   const daysInMonth=new Date(year,month+1,0).getDate();
-  // Get existing entries for this month to show dots
   const existingDates=new Set(savings_account
-    .filter(e=>{ const d=new Date(e.date); return d.getFullYear()===year&&d.getMonth()===month; })
+    .filter(e=>{const d=new Date(e.date);return d.getFullYear()===year&&d.getMonth()===month;})
     .map(e=>new Date(e.date).getDate())
   );
 
-  // No headers in grid — they are rendered statically above
-  let html='';
+  const typeBtns=Object.entries(SAV_TYPE_CFG).map(([k,v])=>`
+    <button onclick="savCalSetType('${k}')" style="flex:1;padding:8px 4px;border-radius:10px;
+      border:1.5px solid ${type===k?v.color:'rgba(255,255,255,.1)'};
+      background:${type===k?v.bg:'transparent'};
+      color:${type===k?v.color:'#555'};
+      font-size:12px;font-weight:${type===k?700:400};cursor:pointer;font-family:inherit">
+      ${v.label}</button>`).join('');
 
-  // Offset: convert Sun=0 to Mon=0
-  const offset=(firstDay+6)%7;
-  for(let i=0;i<offset;i++) html+=`<div></div>`;
+  const headers=['L','M','X','J','V','S','D'].map(d=>
+    `<div style="text-align:center;font-size:10px;color:#444;font-weight:600;padding:2px 0">${d}</div>`
+  ).join('');
 
+  let cells='';
+  for(let i=0;i<firstDay;i++) cells+=`<div></div>`;
   for(let d=1;d<=daysInMonth;d++){
-    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isSel=selected.has(d);
-    const hasEntry=existingDates.has(d);
-    const cfg=SAV_TYPE_CFG[type];
-    html+=`<div onclick="savCalToggle(${d})" ontouchstart="savCalTouchStart(${d})" ontouchend="savCalTouchEnd(${d},event)"
-      style="height:38px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
-        border:1.5px solid ${isSel?cfg.color:'rgba(255,255,255,.06)'};
-        background:${isSel?cfg.bg:'rgba(255,255,255,.03)'};
-        color:${isSel?cfg.color:'#666'};
-        font-size:13px;font-weight:${isSel?700:400};
+    const sel=selected.has(d);
+    const has=existingDates.has(d);
+    cells+=`<div onclick="savCalToggle(${d})" ontouchstart="savCalTouchStart(${d})" ontouchend="savCalTouchEnd(${d},event)"
+      style="height:36px;border-radius:8px;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;cursor:pointer;font-size:13px;
+        border:1.5px solid ${sel?cfg.color:'rgba(255,255,255,.08)'};
+        background:${sel?cfg.bg:'rgba(255,255,255,.03)'};
+        color:${sel?cfg.color:'#666'};font-weight:${sel?700:400};
         user-select:none;-webkit-user-select:none;touch-action:manipulation">
       ${d}
-      <div style="width:4px;height:4px;border-radius:50%;background:${hasEntry?(isSel?cfg.color:'#333'):'transparent'};margin-top:1px"></div>
+      <div style="width:4px;height:4px;border-radius:50%;background:${has?(sel?cfg.color:'#333'):'transparent'};margin-top:1px"></div>
     </div>`;
   }
 
-  calEl.innerHTML=html;
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-size:11px;font-weight:700;color:#2EE8A5;letter-spacing:.5px">📅 ENTRADA MASIVA</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="savCalPrev()" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:15px;line-height:1;font-family:inherit">‹</button>
+        <span style="font-size:12px;color:#ccc;font-weight:600;min-width:90px;text-align:center">${MF[month]} ${year}</span>
+        <button onclick="savCalNext()" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;cursor:pointer;font-size:15px;line-height:1;font-family:inherit">›</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px">${typeBtns}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-bottom:3px">${headers}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-bottom:14px">${cells}</div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:10px;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Monto por día</div>
+      <input id="sav-bulk-amount" type="number" placeholder="0.00" min="0" step="0.01"
+        style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);
+          border-radius:11px;padding:12px 14px;color:#f0f0f0;font-size:16px;outline:none;font-family:inherit"/>
+    </div>
+    <button onclick="saveBulkSave()" style="width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:none;
+      background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10;font-weight:800;font-size:15px;cursor:pointer;
+      font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>Guardar</span>
+      <span style="font-size:11px;background:rgba(0,0,0,.2);padding:2px 8px;border-radius:99px">
+        ${selected.size} día${selected.size!==1?'s':''}
+      </span>
+    </button>
+    <div style="font-size:10px;color:#444;margin-top:8px;line-height:1.5">Toca para seleccionar · Toca de nuevo para quitar · Mantén para rango</div>
+  `;
 }
 
 function savCalToggle(day){
