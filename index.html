@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" translate="no">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FinControl"/>
 <meta name="theme-color" content="#0c1118"/>
+<meta name="google" content="notranslate"/>
+<meta http-equiv="Content-Language" content="es"/>
 <title>FinControl</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="manifest" href="data:application/manifest+json,{
@@ -31,7 +33,7 @@
     </div>
     <div class="hright">
       <button class="sbtn" id="sbtn" onclick="syncNow()"><span id="sbi">⟳</span></button>
-      <button class="hbtn" onclick="openSheet()">+</button>
+      <button class="hbtn" onclick="openAddMenu()">+</button>
     </div>
   </div>
   <div id="bnr"><span id="bic"></span>&nbsp;<span id="btx"></span></div>
@@ -39,11 +41,11 @@
   <nav id="nav">
     <button class="nb active" id="n0" onclick="go(0)"><span class="ni">⊞</span><span class="nl">Inicio</span><div class="nd" id="d0"></div></button>
     <button class="nb" id="n1" onclick="go(1)"><span class="ni">📊</span><span class="nl">Estadísticas</span><div class="nd" id="d1" style="display:none"></div></button>
-    <button class="nc" onclick="openSheet()"><div class="ncp">+</div><span class="nl">Agregar</span></button>
     <button class="nb" id="n2" onclick="go(2)"><span class="ni">🕐</span><span class="nl">Historial</span><div class="nd" id="d2" style="display:none"></div></button>
-    <button class="nb" id="n3" onclick="go(3)"><span class="ni">☰</span><span class="nl">Registros</span><div class="nd" id="d3" style="display:none"></div></button>
-    <button class="nb" id="n4" onclick="go(4)"><span class="ni">💎</span><span class="nl">Patrimonio</span><div class="nd" id="d4" style="display:none"></div></button>
-    <button class="nb" id="n5" onclick="go(5)"><span class="ni">💹</span><span class="nl">Ahorro</span><div class="nd" id="d5" style="display:none"></div></button>
+    <button class="nb" id="n3" onclick="go(3)"><span class="ni">☰</span><span class="nl">Recurrentes</span><div class="nd" id="d3" style="display:none"></div></button>
+    <button class="nb" id="n4" onclick="go(4)"><span class="ni">🏦</span><span class="nl">Cuentas</span><div class="nd" id="d4" style="display:none"></div></button>
+    <button class="nb" id="n5" onclick="go(5)"><span class="ni">📈</span><span class="nl">Acciones</span><div class="nd" id="d5" style="display:none"></div></button>
+    <button class="nb" id="n6" onclick="go(6)"><span class="ni">🪙</span><span class="nl">Crypto</span><div class="nd" id="d6" style="display:none"></div></button>
   </nav>
 </div>
 <div id="ov" onclick="bgc(event)">
@@ -150,12 +152,26 @@
         <button id="btn-fixed-no" onclick="setFixed(false)" style="padding:4px 12px;border-radius:7px;border:none;font-size:11px;font-family:inherit;cursor:pointer">No, varía</button>
       </div>
     </div>
+    <div class="f" id="f-freq-row">
+      <label class="fl">Frecuencia</label>
+      <select id="f-freq">
+        <option value="daily">⏱ Diario</option>
+        <option value="weekly">📆 Semanal</option>
+        <option value="biweekly">📆 Quincenal</option>
+        <option value="monthly" selected>🔁 Mensual</option>
+        <option value="quarterly">📅 Trimestral</option>
+        <option value="biannual">📅 Semestral</option>
+        <option value="annual">📅 Anual</option>
+        <option value="variable">〰 Variable</option>
+      </select>
+    </div>
     <div class="f"><label class="fl">Palabras clave CSV</label><input id="fkw" type="text" placeholder="ej. magenta, netflix, voest..."/></div>
     <p class="hint" id="kw-hint" style="display:none">💡 Para montos variables usa keywords para identificar la transacción en el CSV. Para montos fijos el match es automático por monto.</p>
     <div class="f"><label class="fl">Nota (opcional)</label><input id="fno" type="text" placeholder="Detalles adicionales..."/></div>
     <button class="bsv" id="bsv" onclick="saveEntry()">Guardar registro</button>
   </div>
 </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 
 </body>
