@@ -247,13 +247,13 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 _sb.auth.onAuthStateChange((event, session)=>{
   if((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session){
     // Clean the URL hash before redirecting
-    window.location.replace("index.html");
+    window.location.replace("https://siraxelloid1460.github.io/FinControl/index.html");
   }
 });
 
 // Also check for existing session (page refresh case)
 _sb.auth.getSession().then(({data:{session}})=>{
-  if(session) window.location.replace("index.html");
+  if(session) window.location.replace("https://siraxelloid1460.github.io/FinControl/index.html");
 });
 
 let _mode = 'login';
