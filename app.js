@@ -17,6 +17,7 @@ function getSupabase(){
         detectSessionInUrl: true,
         persistSession: true,
         autoRefreshToken: true,
+        storageKey: 'fincontrol-auth',
       }
     });
   }
