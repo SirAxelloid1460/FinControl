@@ -2,6 +2,9 @@
 <html lang="es" translate="no">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -46,6 +49,7 @@
     <button class="nb" id="n4" onclick="go(4)"><span class="ni">🏦</span><span class="nl">Cuentas</span><div class="nd" id="d4" style="display:none"></div></button>
     <button class="nb" id="n5" onclick="go(5)"><span class="ni">📈</span><span class="nl">Acciones</span><div class="nd" id="d5" style="display:none"></div></button>
     <button class="nb" id="n6" onclick="go(6)"><span class="ni">🪙</span><span class="nl">Crypto</span><div class="nd" id="d6" style="display:none"></div></button>
+    <button class="nb" id="n7" onclick="go(7)"><span class="ni">💳</span><span class="nl">Deudas</span><div class="nd" id="d7" style="display:none"></div></button>
   </nav>
 </div>
 <div id="ov" onclick="bgc(event)">
@@ -90,11 +94,22 @@
       </div>
       <div class="fg">
         <div class="f"><label class="fl">Cuota mensual * (€)</label><input id="fa2" type="number" placeholder="ej. 283.21" oninput="calcDebtPreview()"/></div>
-        <div class="f"><label class="fl">Cargo trimestral * (€)</label><input id="fq" type="number" placeholder="ej. 21.99" oninput="calcDebtPreview()"/></div>
+        <div class="f"><label class="fl">Cargo fijo trimestral (€) — la parte fija del banco, ej. €21.99</label><input id="fq" type="number" placeholder="ej. 21.99" oninput="calcDebtPreview()"/></div>
       </div>
       <div class="fg">
         <div class="f"><label class="fl">Fecha de inicio *</label><input id="fd-date" type="date" oninput="calcDebtPreview()"/></div>
         <div class="f"><label class="fl">Fin tipo fijo / vencimiento</label><input id="fd-fixed-end" type="date"/></div>
+      </div>
+      <!-- BAWAG effective rate calibration -->
+      <div id="bawag-calibration" style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.15);border-radius:12px;padding:12px;margin-bottom:12px">
+        <div style="font-size:10px;color:#F97316;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">⚡ Calibración de cargo trimestral</div>
+        <div style="font-size:11px;color:#666;margin-bottom:10px">Introduce un cargo real conocido para calcular la tasa efectiva exacta.</div>
+        <div class="fg" style="margin-bottom:8px">
+          <div class="f" style="margin-bottom:0"><label class="fl">Cargo total real (€) — el cobro trimestral real que ves en el extracto</label><input id="fd-known-charge" type="number" placeholder="ej. 571.56" step="0.01" oninput="calcDebtPreview()"/></div>
+          <div class="f" style="margin-bottom:0"><label class="fl">Saldo en ese momento (€)</label><input id="fd-known-balance" type="number" placeholder="ej. 18360" step="0.01" oninput="calcEffectiveRate()"/></div>
+        </div>
+        <div id="fd-effective-rate-display" style="font-size:11px;color:#F97316;display:none;margin-bottom:6px"></div>
+        <input type="hidden" id="fd-effective-rate"/>
       </div>
       <div class="fg">
         <div class="f"><label class="fl">Plazos totales (meses)</label><input id="fd-terms" type="number" placeholder="ej. 120" min="1" oninput="calcDebtPreview()"/></div>
