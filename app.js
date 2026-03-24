@@ -1,8 +1,8 @@
 // ── SUPABASE CONFIG ─────────────────────────────────────────
 // Replace with your Supabase project URL and anon key
-const SUPABASE_URL = "https://https://kciyeboeuiplkqrowbef.supabase.co.supabase.co";
+const SUPABASE_URL = "https://kciyeboeuiplkqrowbef.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Pprou7FHi71ziiSU5zAcwQ_TNgjG8vV";
-const REDIRECT_URL = "https://siraxelloid1460.github.io/fincontrol/";
+const REDIRECT_URL = "https://siraxelloid1460.github.io/FinControl/index.html";
 
 // Legacy Google Apps Script URL (kept for migration, can be removed after)
 const GAS_URL = "https://script.google.com/macros/s/AKfycbx1RZEZN3aI5YWrSeoh9Jt9vFcT1DN772pC_IJDUHqFwO5wgVrPQpXoMamqqzw5PWv_/exec";
@@ -12,7 +12,13 @@ let _user = null;
 
 function getSupabase(){
   if(!_supabase && window.supabase){
-    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth:{
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    });
   }
   return _supabase;
 }
@@ -1362,13 +1368,20 @@ function signOut(){
   // ── AUTH CHECK ──────────────────────────────────────────────
   const sb=getSupabase();
   if(sb){
+    // Try getSession first, then verify with getUser to avoid redirect loops
     const{data:{session}}=await sb.auth.getSession();
     if(!session){
-      // Not logged in — redirect to landing
-      window.location.href=window.location.pathname.replace('index.html','')+'landing.html';
-      return;
+      // Double-check: wait briefly and retry once (handles post-OAuth timing)
+      await new Promise(r=>setTimeout(r,500));
+      const{data:{session:session2}}=await sb.auth.getSession();
+      if(!session2){
+        window.location.replace('https://siraxelloid1460.github.io/FinControl/landing.html');
+        return;
+      }
+      _user=session2.user;
+    } else {
+      _user=session.user;
     }
-    _user=session.user;
     // Show user info in header
     const name=_user.user_metadata?.full_name||_user.user_metadata?.name||_user.email||'';
     const avatar=_user.user_metadata?.avatar_url||'';

@@ -256,12 +256,16 @@ if(window.location.hash && window.location.hash.includes('access_token')){
 
 // 2. Listen for auth state changes
 _sb.auth.onAuthStateChange((event, session)=>{
-  if(session) window.location.replace(APP_URL);
+  if((event==='SIGNED_IN'||event==='TOKEN_REFRESHED') && session){
+    window.location.replace(APP_URL);
+  }
 });
 
-// 3. Check existing session on load
+// 3. Check existing session on load — only redirect if we're on landing
 _sb.auth.getSession().then(({data:{session}})=>{
-  if(session) window.location.replace(APP_URL);
+  if(session && window.location.href.includes('landing.html')){
+    window.location.replace(APP_URL);
+  }
 });
 
 let _mode = 'login';
