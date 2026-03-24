@@ -235,16 +235,25 @@ const SUPABASE_URL = "https://kciyeboeuiplkqrowbef.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Pprou7FHi71ziiSU5zAcwQ_TNgjG8vV";
 const REDIRECT_URL = "https://siraxelloid1460.github.io/FinControl/index.html";
 
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// Check if already logged in
-_sb.auth.getSession().then(({data:{session}})=>{
-  if(session) window.location.href = "index.html";
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    detectSessionInUrl: true,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
 });
 
-// Auth state changes
+// Handle auth state — fires on SIGNED_IN after OAuth redirect
 _sb.auth.onAuthStateChange((event, session)=>{
-  if(session) window.location.href = "index.html";
+  if((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session){
+    // Clean the URL hash before redirecting
+    window.location.replace("index.html");
+  }
+});
+
+// Also check for existing session (page refresh case)
+_sb.auth.getSession().then(({data:{session}})=>{
+  if(session) window.location.replace("index.html");
 });
 
 let _mode = 'login';
