@@ -233,27 +233,35 @@ footer{text-align:center;padding:24px;color:#333;font-size:12px;border-top:1px s
 <script>
 const SUPABASE_URL = "https://kciyeboeuiplkqrowbef.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Pprou7FHi71ziiSU5zAcwQ_TNgjG8vV";
-const REDIRECT_URL = "https://siraxelloid1460.github.io/FinControl/index.html";
+const REDIRECT_URL = "https://siraxelloid1460.github.io/FinControl/landing.html";
 
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     detectSessionInUrl: true,
     persistSession: true,
     autoRefreshToken: true,
+    storageKey: 'fincontrol-auth',
   }
 });
 
-// Handle auth state — fires on SIGNED_IN after OAuth redirect
+const APP_URL = "https://siraxelloid1460.github.io/FinControl/index.html";
+
+// 1. Check hash for token (OAuth callback lands here with #access_token=...)
+if(window.location.hash && window.location.hash.includes('access_token')){
+  // Let Supabase parse the hash, then redirect
+  _sb.auth.getSession().then(({data:{session}})=>{
+    if(session) window.location.replace(APP_URL);
+  });
+}
+
+// 2. Listen for auth state changes
 _sb.auth.onAuthStateChange((event, session)=>{
-  if((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session){
-    // Clean the URL hash before redirecting
-    window.location.replace("https://siraxelloid1460.github.io/FinControl/index.html");
-  }
+  if(session) window.location.replace(APP_URL);
 });
 
-// Also check for existing session (page refresh case)
+// 3. Check existing session on load
 _sb.auth.getSession().then(({data:{session}})=>{
-  if(session) window.location.replace("https://siraxelloid1460.github.io/FinControl/index.html");
+  if(session) window.location.replace(APP_URL);
 });
 
 let _mode = 'login';
