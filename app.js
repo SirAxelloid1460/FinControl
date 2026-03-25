@@ -227,10 +227,10 @@ function debtNetMonthly(mo,quarterlyCharge){
   return quarterlyCharge>0?Math.round((mo*3-quarterlyCharge)/3*100)/100:mo;
 }
 
-let entries=[],history=[],revolut=[],investments=[],savings_account=[],accounts=[],stmtConfig={annualRate:0,overdraftRate:0,maintenanceFeeHigh:0,maintenanceFeeLow:0,maintenanceThreshold:500},tab=0,filter="all",editId=null,ctype="expense",syncing=false,statsYear=new Date().getFullYear();
+let entries=[],history=[],revolut=[],investments=[],savings_account=[],accounts=[],accountProfiles=[],stmtConfig={annualRate:0,overdraftRate:0,maintenanceFeeHigh:0,maintenanceFeeLow:0,maintenanceThreshold:500},tab=0,filter="all",activeAccountId=null,editId=null,ctype="expense",syncing=false,statsYear=new Date().getFullYear();
 
-const lc=()=>{try{const d=JSON.parse(localStorage.getItem("fc_v5"));return d||{entries:[],history:[],revolut:[],investments:[],savings_account:[],stmtConfig:{annualRate:0,overdraftRate:0,maintenanceFeeHigh:0,maintenanceFeeLow:0,maintenanceThreshold:500}};}catch{return{entries:[],history:[],revolut:[],investments:[]};}};
-const sc=()=>{try{localStorage.setItem("fc_v5",JSON.stringify({entries,history,revolut,investments,savings_account,stmtConfig}));}catch{}};
+const lc=()=>{try{const d=JSON.parse(localStorage.getItem("fc_v5"));return d||{entries:[],history:[],revolut:[],investments:[],savings_account:[],accountProfiles:[],stmtConfig:{annualRate:0,overdraftRate:0,maintenanceFeeHigh:0,maintenanceFeeLow:0,maintenanceThreshold:500}};}catch{return{entries:[],history:[],revolut:[],investments:[],accountProfiles:[]};}};
+const sc=()=>{try{localStorage.setItem("fc_v5",JSON.stringify({entries,history,revolut,investments,savings_account,accountProfiles,stmtConfig}));}catch{}};
 
 function bnr(type,txt){const b=$("bnr");b.className="show "+type;$("bic").innerHTML=type==="loading"?`<span class="sp">⟳</span>`:type==="success"?"✓":"✕";$("btx").textContent=txt;if(type!=="loading")setTimeout(()=>{b.className="";},3500);}
 function sbs(state){$("sbtn").className="sbtn "+(state||"");$("sbi").innerHTML=state==="syncing"?`<span class="sp">⟳</span>`:state==="ok"?"✓":state==="err"?"✕":"⟳";}
@@ -992,7 +992,16 @@ function rHistory(){
   const totalOut=allTxns.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   const balance=totalIn-totalOut;
 
+  // Account selector pill bar (only if multiple accounts)
+  const acctBar=accountProfiles.length>1?`
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+      <button onclick="setHistAccount('all')" style="flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid rgba(255,255,255,${activeAccountId==='all'||!activeAccountId?'.25':'0.08'});background:${activeAccountId==='all'||!activeAccountId?'rgba(255,255,255,.1)':'transparent'};color:${activeAccountId==='all'||!activeAccountId?'#f0f0f0':'#555'};font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">Todas</button>
+      ${accountProfiles.map(a=>`
+        <button onclick="setHistAccount('${a.id}')" style="flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid rgba(255,255,255,${activeAccountId===a.id?'.25':'0.08'});background:${activeAccountId===a.id?'rgba(255,255,255,.1)':'transparent'};color:${activeAccountId===a.id?'#f0f0f0':'#555'};font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">${a.icon||'🏦'} ${a.name}</button>`).join('')}
+    </div>`:'';
+
   return`
+    ${acctBar}
     <!-- Month nav -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <button onclick="histPrevMonth()" style="width:36px;height:36px;border-radius:11px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;font-size:18px;cursor:pointer;font-family:inherit">‹</button>
@@ -1033,6 +1042,10 @@ function histPrevMonth(){
 function histNextMonth(){
   _histMonth++;
   if(_histMonth>12){_histMonth=1;_histYear++;}
+  $("con").innerHTML=rHistory();
+}
+function setHistAccount(id){
+  activeAccountId=id||'all';
   $("con").innerHTML=rHistory();
 }
 
@@ -1223,6 +1236,7 @@ function openImportMenu(){
 function openSheet(){editId=null;ctype="expense";$("sttl").textContent="Nuevo registro";["fn","fa","fa2","fd","fr","fq","fi","fkw","fno","f-tax-rate","f-penalty-rate","f-adjustment","f-stmt-kw","fd-orig","fd-total","fd-date","fd-terms","fd-fixed-end"].forEach(id=>$(id)&&($(id).value=""));_isFixed=true;$("f-stmt-month")&&($("f-stmt-month").value=new Date().getMonth()+1);$("f-stmt-year")&&($("f-stmt-year").value=new Date().getFullYear());if($("debt-preview"))$("debt-preview").style.display="none";$("fvm").value=new Date().getMonth()+1;$("fvy").value=new Date().getFullYear();$("fd").value=new Date().getDate();$("fm").value=new Date().getMonth()+1;buildTG();updSh();$("ov").classList.add("open");setTimeout(()=>$("sh").classList.add("open"),20);}
 function editEntry(id){const e=entries.find(x=>x.id===id);if(!e)return;editId=id;ctype=e.type;$("sttl").textContent="Editar registro";buildTG();updSh();$("fn").value=e.name||"";$("fa").value=e.amount||"";$("fa2").value=e.amount||"";$("fd").value=e.day||"";$("fr").value=e.remaining||"";$("fq").value=e.quarterlyCharge||"";if($("fd-known-charge"))$("fd-known-charge").value=e.knownCharge||"";if($("fd-known-balance"))$("fd-known-balance").value=e.knownBalance||"";if($("fd-effective-rate"))$("fd-effective-rate").value=e.effectiveRate||"";if(e.effectiveRate&&$("fd-effective-rate-display")){$("fd-effective-rate-display").style.display="block";$("fd-effective-rate-display").textContent="Tasa efectiva guardada: "+(parseFloat(e.effectiveRate)*100).toFixed(4)+"%";};$("fi").value=e.interestRate||"";$("fm").value=e.month||new Date().getMonth()+1;$("fvm").value=e.varMonth||new Date().getMonth()+1;$("fvy").value=e.varYear||new Date().getFullYear();$("fkw").value=e.keywords||"";$("fno").value=e.note||"";if($("f-freq"))$("f-freq").value=e.frequency||"monthly";setFixed(e.fixedAmount!==false);if($("fd-orig"))$("fd-orig").value=e.origAmount||"";if($("fd-total"))$("fd-total").value=e.totalAmount||"";if($("fd-date"))$("fd-date").value=e.startDate||"";if($("fd-terms"))$("fd-terms").value=e.totalTerms||"";if($("fd-fixed-end"))$("fd-fixed-end").value=e.fixedRateEnd||"";if($("debt-preview"))$("debt-preview").style.display="none";if(e.type==="debt")setTimeout(calcDebtPreview,50);if($("f-tax-rate"))$("f-tax-rate").value=e.taxRate||"";if($("f-penalty-rate"))$("f-penalty-rate").value=e.penaltyRate||"";if($("f-adjustment"))$("f-adjustment").value=e.adjustment||"";if($("f-stmt-month"))$("f-stmt-month").value=e.stmtMonth||new Date().getMonth()+1;if($("f-stmt-year"))$("f-stmt-year").value=e.stmtYear||new Date().getFullYear();if($("f-stmt-kw"))$("f-stmt-kw").value=e.stmtKeywords||"";$("ov").classList.add("open");setTimeout(()=>$("sh").classList.add("open"),20);}
 function closeSheet(){$("sh").classList.remove("open");setTimeout(()=>$("ov").classList.remove("open"),300);}
+function openEntry(id){ editEntry(id); } // alias used in debt tab
 function bgc(e){if(e.target===$("ovbg"))closeSheet();}
 async function saveEntry(){
   const name=$("fn").value.trim();
@@ -1235,7 +1249,9 @@ async function saveEntry(){
   const amount=isDebt?(parseFloat($("fa2").value)||parseFloat($("fa").value)||0):(parseFloat($("fa").value)||0);
   // Amount 0 is allowed for variable-amount entries matched by keyword only
   const entry={
-    id:editId||Date.now(),name,type:ctype,amount,
+    id:editId||Date.now(),
+    accountId:editId?(entries.find(e=>e.id===editId)?.accountId||activeAccountId||'main'):(activeAccountId&&activeAccountId!=='all'?activeAccountId:(accountProfiles.find(a=>a.isDefault)?.id||'main')),
+    name,type:ctype,amount,
     day:parseInt($("fd").value)||1,
     origAmount:ctype==="debt"?(parseFloat($("fd-orig")&&$("fd-orig").value)||""):"",
     totalAmount:ctype==="debt"?(parseFloat($("fd-total")&&$("fd-total").value)||""):"",
@@ -1403,7 +1419,16 @@ function signOut(){
     });
   }
 
-  const s=lc();entries=s.entries;history=s.history;revolut=s.revolut||[];investments=s.investments||[];savings_account=s.savings_account||[];accounts=s.accounts||[];if(s.stmtConfig)Object.assign(stmtConfig,s.stmtConfig);retagHistory();render();$("d0").style.display="block";["d1","d2","d3","d4","d5","d6","d7"].forEach(id=>$(id)&&($(id).style.display="none"));
+  const s=lc();entries=s.entries;history=s.history;revolut=s.revolut||[];investments=s.investments||[];savings_account=s.savings_account||[];accounts=s.accounts||[];accountProfiles=s.accountProfiles||[];if(s.stmtConfig)Object.assign(stmtConfig,s.stmtConfig);
+  // Ensure "Main" account always exists
+  if(!accountProfiles.length){accountProfiles=[{id:'main',name:'Principal',color:'#2EE8A5',icon:'🏦',isDefault:true}];sc();}
+  else if(!accountProfiles.find(a=>a.isDefault)){accountProfiles[0].isDefault=true;sc();}
+  activeAccountId=accountProfiles.find(a=>a.isDefault)?.id||accountProfiles[0]?.id||'main';
+  // Assign all unassigned entries to main account
+  let _needsSave=false;
+  entries.forEach(e=>{if(!e.accountId){e.accountId=activeAccountId;_needsSave=true;}});
+  if(_needsSave)sc();
+  retagHistory();render();$("d0").style.display="block";["d1","d2","d3","d4","d5","d6","d7"].forEach(id=>$(id)&&($(id).style.display="none"));
   // PWA install banner
   let _deferredPrompt=null;
   window.addEventListener('beforeinstallprompt',e=>{
@@ -3686,4 +3711,147 @@ function rDebts(){
     ${summary}${cards}
     <div style="height:20px"></div>
   `;
+}
+
+// ── ACCOUNT PROFILES SYSTEM ───────────────────────────────────
+
+const ACCT_COLORS = ['#2EE8A5','#38BDF8','#A78BFA','#FFD166','#F97316','#FF6B6B'];
+const ACCT_ICONS  = ['🏦','💳','💰','🪙','🏧','💵'];
+
+function rPatrimonio(){
+  // Redirect old Cuentas tab to new profile-based view
+  rAccountProfiles();
+}
+
+function rAccountProfiles(){
+  const totalEntries = entries.length;
+
+  const cards = accountProfiles.map((a,i) => {
+    const count = entries.filter(e=>e.accountId===a.id).length;
+    const color = a.color || ACCT_COLORS[i%ACCT_COLORS.length];
+    return `
+      <div class="card" style="margin-bottom:12px;border-color:${color}33;background:${color}08;cursor:pointer" onclick="setHistAccount('${a.id}');go(2)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;border-radius:14px;background:${color}22;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${a.icon||'🏦'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-weight:800;font-size:15px">${a.name}</span>
+              ${a.isDefault?'<span style="font-size:9px;background:rgba(46,232,165,.15);color:#2EE8A5;border-radius:5px;padding:1px 6px;font-weight:700">PRINCIPAL</span>':''}
+            </div>
+            <div style="font-size:11px;color:#555;margin-top:2px">${count} registro${count!==1?'s':''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="event.stopPropagation();openEditAccount_profile('${a.id}')" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#aaa;font-size:12px;cursor:pointer;font-family:inherit">✎</button>
+            ${!a.isDefault?`<button onclick="event.stopPropagation();deleteAccountProfile('${a.id}')" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,107,107,.2);background:transparent;color:#FF6B6B;font-size:12px;cursor:pointer;font-family:inherit">✕</button>`:''}
+          </div>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:11px;color:#555">Ver historial de esta cuenta</span>
+          <span style="font-size:12px;color:${color}">→</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  $("con").innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#555;letter-spacing:.8px;text-transform:uppercase">Cuentas</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">${totalEntries} registros en total</div>
+      </div>
+      <button onclick="openAddAccountProfile()" style="padding:8px 14px;border-radius:11px;border:1px solid rgba(46,232,165,.3);background:rgba(46,232,165,.08);color:#2EE8A5;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">+ Cuenta</button>
+    </div>
+    ${cards}
+    <div style="height:20px"></div>
+  `;
+}
+
+function openAddAccountProfile(){
+  const usedColors = accountProfiles.map(a=>a.color);
+  const defaultColor = ACCT_COLORS.find(c=>!usedColors.includes(c))||ACCT_COLORS[accountProfiles.length%ACCT_COLORS.length];
+  openSheet('Nueva cuenta', `
+    <div class="f"><label class="fl">Nombre</label><input id="ap-name" type="text" placeholder="ej. Cuenta Secundaria, Ahorro..."/></div>
+    <div class="f"><label class="fl">Icono</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${ACCT_ICONS.map(ic=>`<button onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.style.background='');this.style.background='rgba(255,255,255,.15)';document.getElementById('ap-icon-val').value='${ic}'" style="font-size:20px;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;cursor:pointer">${ic}</button>`).join('')}
+      </div>
+      <input type="hidden" id="ap-icon-val" value="🏦"/>
+    </div>
+    <div class="f"><label class="fl">Color</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${ACCT_COLORS.map(c=>`<button onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.style.outline='');this.style.outline='2px solid white';document.getElementById('ap-color-val').value='${c}'" style="width:28px;height:28px;border-radius:50%;border:none;background:${c};cursor:pointer;outline:${c===defaultColor?'2px solid white':'none'}"></button>`).join('')}
+      </div>
+      <input type="hidden" id="ap-color-val" value="${defaultColor}"/>
+    </div>
+    <button class="bsv" style="background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10" onclick="saveAccountProfile()">Crear cuenta</button>
+  `);
+}
+
+function openEditAccount_profile(id){
+  const a = accountProfiles.find(x=>x.id===id);
+  if(!a) return;
+  openSheet('Editar cuenta', `
+    <div class="f"><label class="fl">Nombre</label><input id="ap-name" type="text" value="${a.name}"/></div>
+    <div class="f"><label class="fl">Icono</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${ACCT_ICONS.map(ic=>`<button onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.style.background='');this.style.background='rgba(255,255,255,.15)';document.getElementById('ap-icon-val').value='${ic}'" style="font-size:20px;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:${a.icon===ic?'rgba(255,255,255,.15)':'transparent'};cursor:pointer">${ic}</button>`).join('')}
+      </div>
+      <input type="hidden" id="ap-icon-val" value="${a.icon||'🏦'}"/>
+    </div>
+    <div class="f"><label class="fl">Color</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${ACCT_COLORS.map(c=>`<button onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.style.outline='');this.style.outline='2px solid white';document.getElementById('ap-color-val').value='${c}'" style="width:28px;height:28px;border-radius:50%;border:none;background:${c};cursor:pointer;outline:${c===a.color?'2px solid white':'none'}"></button>`).join('')}
+      </div>
+      <input type="hidden" id="ap-color-val" value="${a.color||'#2EE8A5'}"/>
+    </div>
+    ${!a.isDefault?`
+    <div class="f"><label class="fl">Mover todos los registros a</label>
+      <select id="ap-move-to" style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;color:#f0f0f0;font-size:14px;font-family:inherit">
+        <option value="">— Mantener en esta cuenta —</option>
+        ${accountProfiles.filter(x=>x.id!==id).map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}
+      </select>
+    </div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+      ${!a.isDefault?`<button class="bsv" style="background:rgba(46,232,165,.08);color:#2EE8A5;border:1px solid rgba(46,232,165,.2)" onclick="setDefaultAccount('${id}')">Hacer principal</button>`:'<div></div>'}
+      <button class="bsv" style="background:linear-gradient(135deg,#2EE8A5,#0097a7);color:#001a10" onclick="saveAccountProfile('${id}')">Guardar</button>
+    </div>
+  `);
+}
+
+function saveAccountProfile(editId){
+  const name = ($('ap-name')?.value||'').trim();
+  const icon = $('ap-icon-val')?.value||'🏦';
+  const color = $('ap-color-val')?.value||'#2EE8A5';
+  if(!name){bnr('error','Introduce un nombre');return;}
+  if(editId){
+    const a = accountProfiles.find(x=>x.id===editId);
+    if(a){
+      Object.assign(a, {name, icon, color});
+      const moveTo = $('ap-move-to')?.value;
+      if(moveTo){
+        entries.forEach(e=>{if(e.accountId===editId)e.accountId=moveTo;});
+        bnr('success','Registros movidos a '+accountProfiles.find(x=>x.id===moveTo)?.name);
+      }
+    }
+  } else {
+    accountProfiles.push({id:'acct_'+Date.now(), name, icon, color, isDefault:false});
+  }
+  sc(); push(); closeSheet();
+  rAccountProfiles();
+}
+
+function deleteAccountProfile(id){
+  if(!confirm('¿Eliminar esta cuenta? Los registros pasarán a la cuenta principal.')) return;
+  const mainId = accountProfiles.find(a=>a.isDefault)?.id||'main';
+  entries.forEach(e=>{if(e.accountId===id)e.accountId=mainId;});
+  accountProfiles = accountProfiles.filter(a=>a.id!==id);
+  sc(); push();
+  rAccountProfiles();
+}
+
+function setDefaultAccount(id){
+  accountProfiles.forEach(a=>a.isDefault=false);
+  const a = accountProfiles.find(x=>x.id===id);
+  if(a) a.isDefault=true;
+  sc(); push(); closeSheet();
+  rAccountProfiles();
 }
