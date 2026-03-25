@@ -131,22 +131,96 @@ function calcM(rem, mo, rate, quarterlyCharge){
 // Net monthly capital progress = (cuota×3 − cargoTrimestral) / 3
 
 // ── BAWAG QUARTERLY CHARGE FORMULA ──────────────────────────
-// cargo = (saldo_pendiente × tasa_nominal × (365.25/4)) / total_contrato + cargo_fijo
-// Donde tasa_nominal es el número tal cual (ej. 11.18, NO 0.1118)
-// Documentado por BAWAG PSK en conversación directa con cliente (mar 2026)
-function bawagQuarterlyCharge(remaining, interestRateNominal, totalContract, fixedCharge){
+// cargo = (saldo × tasa_nominal × días) / total_contrato + cargo_fijo
+// días = 91.3125 para trimestres normales
+// PERO el primer trimestre cuenta solo los meses completos desde fin del mes
+// de contratación hasta el primer día de cargo (Mar31/Jun30/Sep30/Dic31)
+// Ej: contrato 15/Jul → primer cargo Sep30 → días = Ago(31)+Sep(30) = 61
+
+function _daysInMonth(year, month){ // month 0-based
+  return new Date(year, month+1, 0).getDate();
+}
+
+// Real days in a BAWAG quarter ending on a given date
+// e.g. Sep 30 2026 → Jul+Aug+Sep = 31+31+30 = 92
+function _realQuarterDays(quarterEndDate){
+  // Quarter end months: Mar(2), Jun(5), Sep(8), Dec(11) → 0-based
+  const m = quarterEndDate.getMonth(); // 0-based
+  const y = quarterEndDate.getFullYear();
+  // The quarter covers 3 months ending in m
+  const m1 = m-2, m2 = m-1, m3 = m;
+  const y1 = m1<0 ? y-1 : y;
+  const y2 = m2<0 ? y-1 : y;
+  const m1n = m1<0 ? m1+12 : m1;
+  const m2n = m2<0 ? m2+12 : m2;
+  return _daysInMonth(y1,m1n) + _daysInMonth(y2,m2n) + _daysInMonth(y,m3);
+}
+
+// Round monto inicial to nearest 1000
+function _roundMonto(amount){
+  return Math.round(amount/1000)*1000;
+}
+
+// Round total a devolver using ratio from original contract values
+function _roundTotal(totalReal, origReal, origRounded){
+  const ratio = totalReal / origReal;
+  return Math.round(ratio * origRounded / 1000) * 1000;
+}
+
+// Returns {days, date} for the first BAWAG charge after a contract start date
+function bawagFirstQuarter(startDateStr){
+  if(!startDateStr) return {days:365.25/4, date:null};
+  const sd = new Date(startDateStr);
+  if(isNaN(sd)) return {days:365.25/4, date:null};
+  
+  // End of contract month
+  const endM = sd.getMonth(); // 0-based
+  const endY = sd.getFullYear();
+  
+  // Quarter-end dates: Mar31=2, Jun30=5, Sep30=8, Dec31=11 (0-based months)
+  const qMonths = [2,5,8,11];
+  const qDays   = [31,30,30,31];
+  
+  // Find first quarter-end strictly after end of contract month
+  let firstCharge = null;
+  for(let y=endY; y<=endY+1; y++){
+    for(let i=0;i<4;i++){
+      const cd = new Date(y, qMonths[i], qDays[i]);
+      if(cd > new Date(endY, endM, _daysInMonth(endY, endM))){
+        firstCharge = cd;
+        break;
+      }
+    }
+    if(firstCharge) break;
+  }
+  if(!firstCharge) return {days:365.25/4, date:null};
+  
+  // Count days: full months from month after endM up to firstCharge month
+  let totalDays = 0;
+  let m = endM + 1, y = endY;
+  if(m > 11){m=0; y++;}
+  while(y < firstCharge.getFullYear() || (y===firstCharge.getFullYear() && m<=firstCharge.getMonth())){
+    totalDays += _daysInMonth(y, m);
+    m++;
+    if(m>11){m=0;y++;}
+  }
+  
+  const MN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return {days:totalDays, date:`${MN[firstCharge.getMonth()]} ${firstCharge.getFullYear()}`};
+}
+
+function bawagQuarterlyCharge(remaining, interestRateNominal, totalContract, fixedCharge, days){
   if(!remaining||!interestRateNominal||!totalContract) return fixedCharge||0;
-  const interestPart=(remaining * interestRateNominal * (365.25/4)) / totalContract;
+  const d = days||(365.25/4);
+  const interestPart=(remaining * interestRateNominal * d) / totalContract;
   const total=interestPart+(fixedCharge||0);
   return Math.round(total*100)/100;
 }
 
-// Back-calculate: what nominal rate produces a known charge given known balance?
 function inferNominalRate(knownCharge, knownBalance, totalContract, fixedCharge){
   if(!knownBalance||!totalContract) return 0;
   const interestPart=(knownCharge||0)-(fixedCharge||0);
   if(interestPart<=0) return 0;
-  // interestPart = (balance * rate * 91.3125) / total  =>  rate = interestPart * total / (balance * 91.3125)
   return (interestPart * totalContract) / (knownBalance * (365.25/4));
 }
 
@@ -169,9 +243,25 @@ function computeDebt(d){
 
   // Quarterly charge using the correct BAWAG formula
   const fixedCharge=parseFloat(d.quarterlyCharge)||0; // the €21.99 fixed part
+  const firstQ = d.startDate ? bawagFirstQuarter(d.startDate) : {days:365.25/4, date:null};
+  // Use first-quarter days only if we haven't passed the first charge date yet
+  // (i.e. elapsed < first quarter days / 30.4 months)
+  const isFirstQuarter = firstQ.days < 91 && elapsedMonths <= Math.ceil(firstQ.days/30.4);
+  // For current quarter: find which quarter-end is next and use its real days
+  const _nowForQ = new Date();
+  const _qEnds = [[2,31],[5,30],[8,30],[11,31]];
+  let _nextQEnd = null;
+  for(let y=_nowForQ.getFullYear(); y<=_nowForQ.getFullYear()+1; y++){
+    for(const [qm,qd] of _qEnds){
+      const qe = new Date(y,qm,qd);
+      if(qe >= _nowForQ){_nextQEnd=qe;break;}
+    }
+    if(_nextQEnd)break;
+  }
+  const realDays = _nextQEnd ? _realQuarterDays(_nextQEnd) : 91;
+  const activeDays = isFirstQuarter ? firstQ.days : realDays;
   if(interestRate>0&&total>0&&rem>0){
-    // Full BAWAG formula: variable interest part + fixed charge
-    quarterlyCharge=bawagQuarterlyCharge(rem, interestRate, total, fixedCharge);
+    quarterlyCharge=bawagQuarterlyCharge(rem, interestRate, total, fixedCharge, activeDays);
   } else if(fixedCharge>0){
     quarterlyCharge=fixedCharge;
   }
@@ -207,16 +297,35 @@ function computeDebt(d){
   // % paid = (original - remaining) / original
   const pctPaid=orig>0&&rem>=0?Math.max(0,Math.min(100,Math.round((orig-rem)/orig*100))):null;
 
-  // Project next 4 quarters of charges (shows how it decreases over time)
+  // Project next 4 BAWAG quarter-end dates (Mar 31, Jun 30, Sep 30, Dec 31)
   let projectedCharges=null;
   if(interestRate>0&&total>0&&rem>0&&netMonthly>0&&fixedCharge>=0){
     projectedCharges=[];
+    // Find next quarter-end dates from today
+    const now=new Date();
+    const quarterEnds=[
+      new Date(now.getFullYear(),2,31),   // Mar 31
+      new Date(now.getFullYear(),5,30),   // Jun 30
+      new Date(now.getFullYear(),8,30),   // Sep 30
+      new Date(now.getFullYear(),11,31),  // Dec 31
+    ];
+    // Add next year's quarters too so we always have 4 upcoming
+    [0,1,2,3].forEach(i=>quarterEnds.push(new Date(now.getFullYear()+1,[2,5,8,11][i],[31,30,30,31][i])));
+    const upcoming=quarterEnds.filter(d=>d>=now).slice(0,4);
+    const MN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     let projRem=rem;
-    for(let q=0;q<4&&projRem>0;q++){
-      const charge=bawagQuarterlyCharge(projRem, interestRate, total, fixedCharge);
-      projectedCharges.push({quarter:q+1,charge,remaining:Math.round(projRem*100)/100});
+    const _fq = startDate ? bawagFirstQuarter(startDate) : {days:365.25/4};
+    upcoming.forEach((d,i)=>{
+      if(projRem<=0)return;
+      const isFirst = i===0 && _fq.days<91 && elapsedMonths<=Math.ceil(_fq.days/30.4);
+      // Use real calendar days for this quarter, or first-quarter days if applicable
+      const days = isFirst ? _fq.days : _realQuarterDays(d);
+      const charge=bawagQuarterlyCharge(projRem, interestRate, total, fixedCharge, days);
+      const label=`${MN[d.getMonth()]} ${d.getFullYear()}`;
+      const daysNote=` (${Math.round(days)}d)`;
+      projectedCharges.push({quarter:i+1,charge,remaining:Math.round(projRem*100)/100,date:label+daysNote});
       projRem=Math.max(0,projRem-(netMonthly*3));
-    }
+    });
   }
 
   return{orig,total,mo,rem,totalInterest,quarterlyCharge,effectiveRate,interestRate,netMonthly,
@@ -3096,6 +3205,55 @@ function calcEffectiveRate(){
   }
 }
 
+function autoRoundDebtFields(){
+  const origEl = $("fd-orig");
+  const totalEl = $("fd-total");
+  const hintEl = $("fd-orig-hint");
+  if(!origEl||!hintEl) return;
+  const orig = parseFloat(origEl.value)||0;
+  const total = parseFloat(totalEl?.value)||0;
+  if(orig<=0){if(hintEl)hintEl.style.display="none";return;}
+  const origR = Math.round(orig/1000)*1000;
+  let hint = `Redondeado: €${origR.toLocaleString('es-ES')}`;
+  if(total>0 && orig>0){
+    // Use the raw prestamo (without fees) for ratio — ask user or estimate
+    // We'll just show both rounded values
+    const ratio = total/orig;
+    const ratioRounded = Math.round(ratio*10)/10;
+    const totalR = Math.round(ratioRounded*origR/1000)*1000;
+    hint += ` · Total redondeado: €${totalR.toLocaleString('es-ES')}`;
+    hint += ` · Ratio: ×${ratio.toFixed(1)}`;
+  }
+  hintEl.textContent = hint;
+  hintEl.style.display = "block";
+}
+
+function autoCalcQuarterlyCharge(){
+  const orig  = parseFloat($("fd-orig")?.value)||0;
+  const total = parseFloat($("fd-total")?.value)||0;
+  const rate  = parseFloat($("fi")?.value)||0;
+  const fqEl  = $("fq");
+  if(!fqEl) return;
+  if(orig>0 && total>0 && rate>0){
+    // Variable part = (orig * rate * 91.3125) / total
+    // fq field stores the FIXED part (e.g. €21.99), not the total
+    // So we only auto-fill if fq is empty (user hasn't set a fixed charge yet)
+    // Show the calculated variable part as a hint instead
+    const varPart = (orig * rate * (365.25/4)) / total;
+    let hint = $("fq-hint");
+    if(!hint){
+      hint = document.createElement("div");
+      hint.id = "fq-hint";
+      hint.style.cssText = "font-size:11px;color:#2EE8A5;margin-top:4px;";
+      fqEl.parentElement.appendChild(hint);
+    }
+    hint.textContent = `Parte variable calculada: €${varPart.toFixed(2)} (cargo total ≈ €${(varPart+(parseFloat(fqEl.value)||0)).toFixed(2)}/trimestre)`;
+  } else {
+    const hint = $("fq-hint");
+    if(hint) hint.textContent = "";
+  }
+}
+
 function calcDebtPreview(){
   const orig      = parseFloat($("fd-orig")&&$("fd-orig").value)||0;
   const total     = parseFloat($("fd-total")&&$("fd-total").value)||0;
@@ -3619,7 +3777,7 @@ function rDebts(){
           <div style="font-size:10px;color:#555;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Próximos cargos trimestrales</div>
           ${cd.projectedCharges.map(q=>`
             <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-              <span style="font-size:11px;color:#555">T${q.quarter} — saldo ${fmt(q.remaining)}</span>
+              <span style="font-size:11px;color:#555">${q.date||'T'+q.quarter} — saldo ${fmt(q.remaining)}</span>
               <div style="text-align:right">
                 <span style="font-family:monospace;font-size:12px;font-weight:700;color:#F97316">${fmt(q.charge)}</span>
                 <span style="font-size:10px;color:#555;margin-left:6px">avance ${fmt((d.amount*3-q.charge)/3)}/mes</span>

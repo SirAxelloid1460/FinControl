@@ -89,8 +89,11 @@
 
       <div style="font-size:10px;color:#555;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px">Datos del contrato</div>
       <div class="fg">
-        <div class="f"><label class="fl">Monto original * (€)</label><input id="fd-orig" type="number" placeholder="ej. 19000" oninput="calcDebtPreview()"/></div>
-        <div class="f"><label class="fl">Total a devolver * (€)</label><input id="fd-total" type="number" placeholder="ej. 33986.01" oninput="calcDebtPreview()"/></div>
+        <div class="f"><label class="fl">Monto original * (€) — suma de préstamo + comisiones</label>
+          <input id="fd-orig" type="number" placeholder="ej. 19820.18" oninput="calcDebtPreview();autoCalcQuarterlyCharge();autoRoundDebtFields()"/>
+          <div id="fd-orig-hint" style="font-size:11px;color:#2EE8A5;margin-top:4px;display:none"></div>
+        </div>
+        <div class="f"><label class="fl">Total a devolver * (€)</label><input id="fd-total" type="number" placeholder="ej. 33986.01" oninput="calcDebtPreview();autoCalcQuarterlyCharge();autoRoundDebtFields()"/></div>
       </div>
       <div class="fg">
         <div class="f"><label class="fl">Cuota mensual * (€)</label><input id="fa2" type="number" placeholder="ej. 283.21" oninput="calcDebtPreview()"/></div>
@@ -113,7 +116,7 @@
       </div>
       <div class="fg">
         <div class="f"><label class="fl">Plazos totales (meses)</label><input id="fd-terms" type="number" placeholder="ej. 120" min="1" oninput="calcDebtPreview()"/></div>
-        <div class="f"><label class="fl">Interés nominal anual (%)</label><input id="fi" type="number" placeholder="ej. 11.18"/></div>
+        <div class="f"><label class="fl">Interés nominal anual (%)</label><input id="fi" type="number" placeholder="ej. 11.18" oninput="calcDebtPreview();autoCalcQuarterlyCharge()"/></div>
       </div>
 
       <div style="font-size:10px;color:#555;letter-spacing:.7px;text-transform:uppercase;margin:14px 0 8px">Estado actual</div>
