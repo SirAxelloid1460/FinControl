@@ -1,0 +1,26 @@
+{
+  "name": "FinControl",
+  "short_name": "FinControl",
+  "description": "Tus finanzas personales y tus plazos fiscales, simples.",
+  "lang": "es",
+  "start_url": "/FinControl/",
+  "scope": "/FinControl/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0c10",
+  "theme_color": "#0a0c10",
+  "icons": [
+    {
+      "src": "/FinControl/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/FinControl/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
